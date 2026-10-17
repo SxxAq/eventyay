@@ -3,6 +3,7 @@ from django.urls import reverse
 from django_scopes import scope
 
 from eventyay.base.models import Submission, SubmissionType
+from eventyay.eventyay_common.templatetags.session_tags import can_review_video, speaker_review_url
 
 
 @pytest.fixture
@@ -100,4 +101,9 @@ def test_table_header_includes_video_column(authenticated_client, event, confirm
     assert response.status_code == 200
     content = response.content.decode()
 
-    assert '<th>Video</th>' in content or '>Video<' in content
+    assert '<th>Video</th>' in content
+
+
+def test_session_tags_edge_cases():
+    assert can_review_video(None) is False
+    assert speaker_review_url(None) == ''
