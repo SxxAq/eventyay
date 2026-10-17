@@ -1,15 +1,21 @@
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
 from django import template
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
+
+
+if TYPE_CHECKING:
+    from eventyay.base.models import Event, Submission, User
 
 
 logger = logging.getLogger(__name__)
 register = template.Library()
 
 
-def is_veditor_active(event: Any) -> bool:
+def is_veditor_active(event: Event | None) -> bool:
     """Return True if the VEditor plugin is active for the given event."""
     if not event:
         return False
@@ -19,7 +25,7 @@ def is_veditor_active(event: Any) -> bool:
             plugins = event.get_plugins()
             if 'veditor' in plugins or any('veditor' in str(p) for p in plugins):
                 return True
-        except Exception as exc:
+        except (AttributeError, TypeError) as exc:
             logger.debug('Failed checking event plugins via get_plugins(): %s', exc)
 
     plugins_attr = getattr(event, 'plugins', None)
@@ -32,7 +38,7 @@ def is_veditor_active(event: Any) -> bool:
 
 
 @register.filter(name='can_review_video')
-def can_review_video(submission: Any, user: Any = None) -> bool:
+def can_review_video(submission: Submission | None, user: User | None = None) -> bool:
     """Return True if the submission is confirmed, has VEditor enabled, and user is authorized."""
     if not submission:
         return False
@@ -86,14 +92,14 @@ def can_review_video(submission: Any, user: Any = None) -> bool:
             'plugins:veditor:speaker-review',
             kwargs={'organizer': org_slug, 'event': event_slug, 'talk_code': code},
         )
-    except Exception:
+    except NoReverseMatch:
         return False
 
     return True
 
 
 @register.simple_tag(name='speaker_review_url')
-def speaker_review_url(submission: Any) -> str:
+def speaker_review_url(submission: Submission | None) -> str:
     """Return the direct 1-click video review launch URL for a confirmed submission."""
     if not submission:
         return ''
@@ -115,5 +121,5 @@ def speaker_review_url(submission: Any) -> str:
             'plugins:veditor:speaker-review',
             kwargs={'organizer': org_slug, 'event': event_slug, 'talk_code': code},
         )
-    except Exception:
+    except NoReverseMatch:
         return f'/common/event/{org_slug}/{event_slug}/veditor/talk/{code}/review/'
